@@ -20,6 +20,10 @@ type mailGunConfig struct {
 }
 
 func (m *Mailgun) Call(hubMsg HubMessage) {
+	if len(m.To) == 0 {
+		log.Print("MailGun: no recipients configured. Nothing to do.")
+		return
+	}
 	msg := mailgun.Message{
 		FromName:      m.Name,
 		FromAddress:   m.From,
