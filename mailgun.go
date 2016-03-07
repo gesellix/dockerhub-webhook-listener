@@ -2,6 +2,7 @@ package listener
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 
 	"github.com/sirsean/go-mailgun/mailgun"
@@ -19,10 +20,10 @@ type mailGunConfig struct {
 	Domain string
 }
 
-func (m *Mailgun) Call(hubMsg HubMessage) {
+func (m *Mailgun) Call(hubMsg HubMessage) error {
 	if len(m.To) == 0 {
 		log.Print("MailGun: no recipients configured. Nothing to do.")
-		return
+		return errors.New("MailGun: no recipients configured. Nothing to do.")
 	}
 	msg := mailgun.Message{
 		FromName:      m.Name,
@@ -35,12 +36,14 @@ func (m *Mailgun) Call(hubMsg HubMessage) {
 	body, err := json.Marshal(hubMsg)
 	if err != nil {
 		log.Print(err)
-		return
+		return err
 	}
 	msg.Body = string(body)
 	client := mailgun.NewClient(m.Key, m.Domain)
 	_, err = client.Send(msg)
 	if err != nil {
 		log.Print(err)
+		return err
 	}
+	return nil
 }

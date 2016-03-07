@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/gcfg.v1"
 
-	server "github.com/cpuguy83/dockerhub-webhook-listener"
+	server "github.com/gesellix/dockerhub-webhook-listener"
 )
 
 var listenAddr = flag.String("listen", "localhost:8080", "<address>:<port> to listen on")

@@ -1,22 +1,25 @@
 package listener
 
-import "log"
+import (
+	"log"
+)
 
 type Handler interface {
-	Call(HubMessage)
+	Call(HubMessage) error
 }
 
 type Logger struct{}
 
-func (l *Logger) Call(msg HubMessage) {
-	log.Print(msg)
+func (l *Logger) Call(msg HubMessage) error {
+	log.Printf("received message %v", msg)
+	return nil
 }
 
 type Registry struct {
-	entries []func(HubMessage)
+	entries []func(HubMessage) error
 }
 
-func (r *Registry) Add(h func(msg HubMessage)) {
+func (r *Registry) Add(h func(msg HubMessage) error) {
 	r.entries = append(r.entries, h)
 	return
 }
@@ -31,7 +34,8 @@ func MsgHandlers() Registry {
 	var handlers Registry
 
 	handlers.Add((&Logger{}).Call)
-	handlers.Add((&Mailgun{ServerConfig.Mailgun}).Call)
+	handlers.Add((&Reloader{}).Call)
+	//handlers.Add((&Mailgun{ServerConfig.Mailgun}).Call)
 
 	return handlers
 }

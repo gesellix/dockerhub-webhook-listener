@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/http/httputil"
 )
 
 var msgHandlers Registry
@@ -27,6 +28,9 @@ type HubMessage struct {
 }
 
 type Config struct {
+	Log struct {
+		Debug bool
+	}
 	ListenAddr string
 	Mailgun    mailGunConfig
 	Tls        struct {
@@ -47,7 +51,7 @@ func Serve(config *Config) error {
 		log.Print("To enable authentication, you must add an `apikeys` section with at least 1 `key`")
 	}
 	msgHandlers = MsgHandlers()
-	http.HandleFunc("/", reqHandler)
+	http.HandleFunc("/", newReqHandler(config))
 	if config.Tls.Key != "" && config.Tls.Cert != "" {
 		log.Print("Starting with SSL")
 		return http.ListenAndServeTLS(config.ListenAddr, config.Tls.Cert, config.Tls.Key, Log(http.DefaultServeMux))
@@ -57,21 +61,32 @@ func Serve(config *Config) error {
 	return http.ListenAndServe(config.ListenAddr, Log(http.DefaultServeMux))
 }
 
-func reqHandler(w http.ResponseWriter, r *http.Request) {
-	if authenticateRequest(r) {
-		decoder := json.NewDecoder(r.Body)
-		var imgConfig HubMessage
+func newReqHandler(config *Config) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if config.Log.Debug == true {
+			dump, err := httputil.DumpRequest(r, true)
+			if err != nil {
+				http.Error(w, "Could not read request", 500)
+				log.Print(err)
+				return
+			}
+			log.Printf("request: %s", dump)
+		}
+		if authenticateRequest(r) {
+			decoder := json.NewDecoder(r.Body)
+			var imgConfig HubMessage
 
-		err := decoder.Decode(&imgConfig)
-		if err != nil {
-			http.Error(w, "Could not decode json", 500)
-			log.Print(err)
+			err := decoder.Decode(&imgConfig)
+			if err != nil {
+				http.Error(w, "Could not decode json", 500)
+				log.Print(err)
+				return
+			}
+			go handleMsg(imgConfig)
 			return
 		}
-		go handleMsg(imgConfig)
-		return
+		http.Error(w, "Not Authorized", 401)
 	}
-	http.Error(w, "Not Authorized", 401)
 }
 
 func Log(handler http.Handler) http.Handler {
